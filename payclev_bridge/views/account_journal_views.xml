@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_journal_form_payclev" model="ir.ui.view">
+        <field name="name">account.journal.form.payclev</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='page_incoming_payments']" position="inside">
+                <group string="PayClev" groups="account.group_account_manager">
+                    <field name="payclev_bridge_enabled"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

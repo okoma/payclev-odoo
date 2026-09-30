@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_payclev_bridge" model="res.groups">
+        <field name="name">PayClev Accounting Bridge</field>
+        <field name="comment">Permits the dedicated integration user to invoke the narrow PayClev payment bridge.</field>
+    </record>
+    <record id="rule_payclev_bridge_company" model="ir.rule">
+        <field name="name">PayClev payment identities: allowed companies</field>
+        <field name="model_id" ref="model_payclev_payment_bridge"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('group_payclev_bridge'))]"/>
+    </record>
+</odoo>
