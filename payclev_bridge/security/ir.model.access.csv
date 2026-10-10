@@ -1,2 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_payclev_bridge_read,PayClev payment identities read,model_payclev_payment_bridge,payclev_bridge.group_payclev_bridge,1,0,0,0
+access_payclev_bridge_read,Payclev payment identities read,model_payclev_payment_bridge,payclev_bridge.group_payclev_bridge,1,0,0,0
+access_payclev_connection_system,payclev.connection system,model_payclev_connection,base.group_system,1,1,1,1
+access_payclev_payment_option_manager,Payclev payment options,model_payclev_payment_option,account.group_account_manager,1,1,1,0
+access_payclev_invoice_event_read,Payclev invoice activity read,model_payclev_invoice_event,account.group_account_invoice,1,0,0,0
+access_payclev_invoice_context_read,Payclev invoice context read,model_payclev_invoice_context,account.group_account_invoice,1,0,0,0
+access_payclev_invoice_notification_system,Payclev invoice notifications,model_payclev_invoice_notification,base.group_system,1,1,1,0

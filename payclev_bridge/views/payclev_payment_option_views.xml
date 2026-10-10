@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_payclev_payment_options" model="ir.actions.act_window">
+        <field name="name">Payclev payment options</field>
+        <field name="res_model">payclev.payment.option</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'active_test': False}</field>
+    </record>
+    <record id="view_payclev_payment_option_list" model="ir.ui.view">
+        <field name="name">payclev.payment.option.list</field>
+        <field name="model">payclev.payment.option</field>
+        <field name="arch" type="xml">
+            <list string="Payclev payment options" create="true" delete="false">
+                <field name="currency_id"/>
+                <field name="journal_id"/>
+                <field name="payment_method_line_id"/>
+                <field name="outstanding_account_id"/>
+                <field name="active" readonly="1"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_payclev_payment_option_form" model="ir.ui.view">
+        <field name="name">payclev.payment.option.form</field>
+        <field name="model">payclev.payment.option</field>
+        <field name="arch" type="xml">
+            <form string="Payclev payment option" create="true" delete="false">
+                <sheet>
+                    <h1>Payclev payment option</h1>
+                    <div class="alert alert-info" role="status">
+                        Add one option per invoice currency. Existing paused options remain in the list and can be resumed; do not create a second option for the same company and currency. These options record confirmed Payclev payments in Odoo. They are not customer-facing Odoo checkout links. An accountant must choose the Outstanding Receipts account before saving.
+                    </div>
+                    <group>
+                        <field name="company_id" readonly="journal_id"/>
+                        <field name="currency_id" readonly="journal_id"/>
+                        <field name="outstanding_account_id" readonly="journal_id" domain="[('account_type', '=', 'asset_current'), ('reconcile', '=', True)]"/>
+                        <field name="journal_id" readonly="1" invisible="not journal_id"/>
+                        <field name="payment_method_line_id" readonly="1" invisible="not payment_method_line_id"/>
+                        <field name="active"/>
+                    </group>
+                    <div class="alert alert-warning" role="status">
+                        Once saved, the currency and accounting accounts cannot be edited. Before pausing, check Payclev for payments awaiting accounting write-back: pausing blocks those too and sends them to reconciliation review. Existing posted payment records remain intact.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

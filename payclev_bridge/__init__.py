@@ -1,2 +1,2 @@
 from . import models as models
-from . import tests as tests
+from . import controllers as controllers

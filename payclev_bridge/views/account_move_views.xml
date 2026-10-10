@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_move_form_payclev_context" model="ir.ui.view">
+        <field name="name">account.move.form.payclev.context</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="before">
+                <field name="payclev_context_visible" invisible="1"/>
+                <field name="payclev_activity_visible" invisible="1"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Payclev" name="payclev_collection" invisible="not payclev_context_visible">
+                    <field name="payclev_invoice_uuid" invisible="1"/>
+                    <div class="o_payclev_panel">
+                        <div class="o_payclev_panel_intro">
+                            <div>
+                                <h2>Collection in Payclev</h2>
+                                <p>Read-only collection context. Odoo remains authoritative for the invoice balance and posted payments.</p>
+                            </div>
+                            <button name="action_open_payclev_invoice" type="object" string="Open in Payclev" class="btn btn-outline-primary" invisible="not payclev_invoice_uuid"/>
+                        </div>
+                        <div class="o_payclev_panel_grid">
+                            <div class="o_payclev_panel_card">
+                                <span class="o_payclev_panel_label">Collection status</span>
+                                <field name="payclev_collection_status" widget="badge" readonly="1"
+                                       decoration-success="payclev_collection_status == 'completed'"
+                                       decoration-warning="payclev_collection_status in ('paused', 'promise_to_pay', 'manual_attention')"
+                                       decoration-danger="payclev_collection_status == 'disputed'"/>
+                            </div>
+                            <div class="o_payclev_panel_card">
+                                <span class="o_payclev_panel_label">Payclev payment</span>
+                                <field name="payclev_payment_status" widget="badge" readonly="1"
+                                       decoration-success="payclev_payment_status == 'reconciled'"
+                                       decoration-warning="payclev_payment_status == 'received'"
+                                       decoration-danger="payclev_payment_status == 'needs_review'"/>
+                            </div>
+                        </div>
+                        <div class="o_payclev_panel_next">
+                            <span class="o_payclev_panel_label">What happens next</span>
+                            <field name="payclev_next_step" readonly="1"/>
+                        </div>
+                        <div class="o_payclev_panel_meta">
+                            <div>Last contact <field name="payclev_last_contact_at" readonly="1"/></div>
+                            <div>Last refreshed <field name="payclev_snapshot_at" readonly="1"/></div>
+                        </div>
+                        <div class="alert alert-warning" role="status" invisible="payclev_snapshot_at">
+                            Payclev has not refreshed this invoice yet. Run a Payclev sync to load collection context.
+                        </div>
+                        <div class="o_payclev_activity" invisible="not payclev_activity_visible">
+                            <h3>Recent activity</h3>
+                            <p>Latest collection events only. Open Payclev for the full conversation and history.</p>
+                            <field name="payclev_activity_ids" nolabel="1" readonly="1">
+                                <list create="false" delete="false" edit="false">
+                                    <field name="occurred_at" string="When"/>
+                                    <field name="label" string="Activity"/>
+                                </list>
+                            </field>
+                        </div>
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

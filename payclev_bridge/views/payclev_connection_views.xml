@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_payclev_connection_form" model="ir.ui.view">
+        <field name="name">payclev.connection.form</field>
+        <field name="model">payclev.connection</field>
+        <field name="arch" type="xml">
+            <form string="Payclev connection" create="false" delete="false">
+                <header>
+                    <button name="action_connect" type="object" string="Connect to Payclev" class="btn-primary" invisible="state == 'connected'"/>
+                    <button name="action_manage_in_payclev" type="object" string="Manage in Payclev" invisible="state != 'connected'"/>
+                    <button name="action_reset_connection" type="object" string="Reset for reconnection" class="btn-secondary" invisible="state != 'connected'" groups="base.group_system" confirm="First disconnect this integration in Payclev. Resetting here revokes its Odoo service key and pauses sync and invoice checkout until you connect again. Continue?"/>
+                    <field name="state" widget="statusbar" statusbar_visible="not_connected,pending,connected"/>
+                </header>
+                <sheet>
+                    <h1>Payclev</h1>
+                    <p>Connect this Odoo company to your Payclev business. An Odoo administrator approves the connection in Payclev; no key needs to be copied.</p>
+                    <div class="alert alert-warning" role="alert" invisible="not last_connection_error">
+                        <field name="last_connection_error" readonly="1" nolabel="1"/>
+                    </div>
+                    <group>
+                        <group string="Odoo company">
+                            <field name="company_id" readonly="1"/>
+                            <field name="service_user_id" readonly="1" groups="base.group_system"/>
+                        </group>
+                        <group string="Connection">
+                            <field name="payclev_business" readonly="1"/>
+                            <field name="last_connected_at" readonly="1"/>
+                            <field name="key_expires_at" readonly="1"/>
+                            <field name="opted_in_journal_count" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Payment setup" invisible="state != 'connected'">
+                        <field name="payment_setup_status" readonly="1"/>
+                        <field name="payment_setup_journal" readonly="1" invisible="payment_setup_status != 'journal_verified'"/>
+                        <field name="payment_setup_currency" readonly="1" invisible="payment_setup_status != 'journal_verified'"/>
+                        <field name="payment_setup_currencies" readonly="1" invisible="not payment_setup_currencies"/>
+                        <field name="payment_setup_review_currencies" readonly="1" invisible="not payment_setup_review_currencies"/>
+                        <field name="payment_setup_reported_at" readonly="1" invisible="not payment_setup_reported_at"/>
+                    </group>
+                    <div class="alert alert-info" role="status" invisible="state != 'connected' or payment_setup_status == 'journal_verified'">
+                        Select and verify a payment journal in Payclev before invoice checkout or payment write-back can be offered. Connecting Odoo alone does not enable payments.
+                    </div>
+                    <div class="alert alert-success" role="status" invisible="state != 'connected' or payment_setup_status != 'journal_verified'">
+                        Payclev has verified the selected payment journal. Invoice checkout still depends on each invoice's currency, status, and current integration health.
+                    </div>
+                    <group string="Service key renewal" invisible="state != 'connected'" groups="base.group_system">
+                        <field name="auto_rotate_key"/>
+                        <field name="last_rotated_at" readonly="1" invisible="not last_rotated_at"/>
+                    </group>
+                    <div class="alert alert-info" role="status" invisible="state != 'connected'" groups="base.group_system">
+                        Recommended: enable automatic renewal to let Payclev verify a replacement key before expiry and revoke only the previous key after the replacement is active. This helps avoid interruptions to invoice sync and checkout. You can leave it off and reconnect manually before expiry instead.
+                    </div>
+                    <group string="Invoice visibility" invisible="state != 'connected'" groups="base.group_system">
+                        <field name="show_invoice_panel"/>
+                        <field name="show_invoice_activity" invisible="not show_invoice_panel"/>
+                    </group>
+                    <div class="alert alert-info" role="status" invisible="state != 'connected'" groups="base.group_system">
+                        Both invoice features are available but off by default. Enable the collection panel, then optionally enable its recent activity timeline. These are read-only Payclev snapshots refreshed by synchronization; Odoo remains the accounting source of truth.
+                    </div>
+                    <button name="action_payment_options" type="object" string="Manage Payclev payment options" class="btn-secondary" groups="account.group_account_manager"/>
+                    <div class="alert alert-info" role="status" invisible="state != 'connected'">
+                        Create one Payclev payment option for each needed active Odoo currency. Choose an accountant-approved Outstanding Receipts account; the add-on creates and protects its own journal and method. Payclev detects and verifies newly approved options on the next sync. Existing selected journals are not replaced automatically.
+                    </div>
+                    <group string="Connection addresses" groups="base.group_system">
+                        <field name="payclev_app_url"/>
+                        <field name="payclev_api_url"/>
+                        <field name="deployment_mode"/>
+                        <field name="allow_local_testing"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_payclev_open_app" model="ir.actions.server">
+        <field name="name">Payclev</field>
+        <field name="model_id" ref="model_payclev_connection"/>
+        <field name="state">code</field>
+        <field name="code">action = env['payclev.connection'].action_open_app()</field>
+    </record>
+
+    <menuitem id="menu_payclev_root" name="Payclev" action="action_payclev_open_app"
+              sequence="65" groups="base.group_system"
+              web_icon="payclev_bridge,static/description/icon.png"/>
+</odoo>

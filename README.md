@@ -1,33 +1,86 @@
-# PayClev Odoo 19 bridge (unreleased)
+# Payclev Odoo 19 app (unreleased)
 
-Current verification: implementation and static/offline PayClev adapter checks
-are complete; the addon `TransactionCase` suite and real-instance qualification
-are pending because no Odoo 19 runtime is available in this workspace.
+The local Odoo 19 test instance is available in the Payclev development
+workspace. This does not qualify the module for production release.
 
 This addon targets Odoo 19 on Odoo.sh or a self-hosted Odoo server. It is not
-usable on Odoo Online. PayClev's Odoo catalog entry and merchant checkout stay
+usable on Odoo Online. Payclev's Odoo catalog entry and merchant checkout stay
 disabled until the full payment lifecycle has passed qualification; installing
 this addon alone does not enable either.
 
-Install `payclev_bridge` alongside Odoo's `account` addon. Create a dedicated
-Odoo integration user with access only to the chosen company, invoice/payment
-accounting permissions, and a short-lived JSON-2 API key. The Odoo deployment
-must have Custom-plan external API access. Configure an incoming bank/cash
-journal and manual payment method with an outstanding receipts account. Do not
-use a personal administrator key or an Odoo payment-provider method for
-external Paystack/Stripe or verified-bank write-back.
+Install `payclev_bridge` alongside Odoo's `account` addon. The module appears
+as **Payclev** in Odoo's app launcher, under Accounting, with the Payclev icon
+and a dedicated management screen. An Odoo administrator selects the company
+and clicks **Connect to Payclev**. Payclev asks the administrator to sign in,
+select a business and approve the accounting access. On return, the module
+creates a dedicated company-scoped service user and short-lived JSON-2 key,
+then securely submits it to Payclev for verification. No key is copied through
+the browser. This API-only user has no browser password or human signup email,
+is shown as a service account rather than a pending invitation, and is excluded
+from Odoo's unregistered-user reminder. An addon upgrade migrates existing
+paired service users without rotating or revoking their JSON-2 keys. The Odoo
+deployment must have Custom-plan external API access.
+In **Odoo → Payclev → Manage Payclev payment options**, an Accounting Manager
+creates one option per invoice currency and selects an existing, reconcilable
+Outstanding Receipts account approved by the accountant. The add-on creates a
+Payclev-only journal and incoming method, then protects their accounting
+configuration from ordinary edits. Check pending Payclev reconciliations
+before pausing an option: pausing blocks unposted write-backs in that currency,
+but does not delete historical payments. Previously opted-in
+bank/cash journals remain available for existing connections. Once an option
+is saved, Payclev detects it on the next sync and verifies it for open invoices
+in that currency; there is no second selection step for newly managed options.
+Existing manually selected journals are not replaced automatically. This
+option is an internal write-back destination, not a customer checkout link or
+an Odoo payment-provider method for Paystack/Stripe or verified-bank receipts.
 
-PayClev connection setup accepts the HTTPS base URL, optional database name,
-deployment type, key and its expiry. The key is encrypted in PayClev and is
-never returned in API responses. Rotation verifies the replacement key before
-switching and requires a successful new-key sync before the administrator can
-confirm that the old key was revoked in Odoo.
+Odoo-hosted invoice payment is separate. With **Invoice Online Payment** and a
+published compatible Odoo payment provider enabled, the add-on returns Odoo's
+own portal payment link for each posted, payable customer invoice. Payclev can
+show that official link alongside independently eligible Payclev payment
+methods. Odoo handles the hosted checkout and accounting payment; Payclev
+observes the result through its normal sync. The link is not created from a
+Payclev payment option, and enabling an Odoo provider does not enable Payclev
+merchant write-back.
+
+The Odoo admin screen shows connection status, selected company, Payclev
+workspace, payment-journal setup and key expiry. The administrator can enable
+**Renew service key automatically** before expiry. This is recommended: during
+the 14-day renewal window, Payclev verifies a new company-scoped key, durably
+switches to it, and only then asks Odoo to revoke the exact old key. If the
+current key has already expired, a new administrator-approved pairing is
+required. Set the Payclev app/API origins on that screen only
+when they differ from the production defaults; local HTTP requires an explicit
+local-testing option and a localhost Odoo base URL. Payclev stores the key
+encrypted and never returns it in browser API responses. There is no manual
+key entry or replacement in Payclev. If automatic renewal is off, disconnect
+the Odoo integration in Payclev before expiry, then choose
+**Reset for reconnection** in the Odoo Payclev app. This revokes the previous
+bridge key and re-enables **Connect to Payclev**. Complete pairing again and
+re-check sync and payment-journal eligibility. Sync and invoice checkout may
+be unavailable during the change.
+
+## Optional invoice panel
+
+Version `19.0.1.0.3` adds an Odoo customer-invoice **Payclev** tab. In
+**Odoo → Payclev**, an Odoo administrator can enable **Show Payclev on
+invoices** and, separately, **Show Payclev activity timeline**. Both switches
+are off by default. After enabling one, run an Odoo sync in Payclev; the
+paired company-scoped service key delivers read-only collection snapshots.
+The tab shows collection status, Payclev payment/write-back status, next step,
+last contact and last refresh, with a link to the full Payclev invoice. The
+timeline contains at most 20 labeled recent events and no message bodies.
+Snapshots are stored separately from `account.move`; they do not change an
+Odoo invoice balance, posted payment or invoice `write_date`. If syncing
+stops, the old snapshot remains with its last-refresh time. Odoo remains the
+accounting source of truth. Disabling a switch hides that feature without
+disconnecting Payclev.
 
 The bridge exposes only health, eligible payment methods, payment snapshots,
 stable-UUID lookup, and one atomic confirmed-payment application. It does not
 provide a generic write API. The payment method enforces company, invoice,
 customer, currency, journal, outstanding-account, exact amount and unique
-PayClev UUID. A failed method call rolls back the entire Odoo transaction.
+Payclev UUID. A failed method call rolls back the entire Odoo transaction.
 
 Before changing the provider release gate, run the PayClev unit suite and an
 Odoo 19 instance qualification covering:
@@ -49,21 +102,25 @@ checks pass, `release_ready=False` is intentional.
 
 ## Bridge contract and configuration
 
-The addon exposes only five JSON-2 model methods on `payclev.payment.bridge`:
+The addon exposes five financial JSON-2 model methods on `payclev.payment.bridge`:
 `payclev_health`, `payclev_payment_methods`, `payclev_find_payment`,
-`payclev_payment_snapshot`, and `payclev_apply_confirmed_payment`. It does not
+`payclev_payment_snapshot`, and `payclev_apply_confirmed_payment`. The same
+model also exposes company-scoped connection-status, payment-setup reporting,
+key-renewal and optional `payclev_update_invoice_contexts` methods. The
+invoice-context method is limited to paired company customer invoices and
+100 snapshots per call; it writes only separate display records. It does not
 expose a generic accounting mutation method. Odoo's ordinary JSON-2 API remains
 available to the bot according to its normal Odoo access rights, so restrict
 its permissions and protect its expiring API key.
 
 The bridge returns Odoo/bridge version, database UUID, bot identity, selected
 company/currency, and the count/readiness of enabled payment methods. An
-Accounting Manager must opt in each selected bank/cash journal under its
-**Incoming Payments** tab using **Allow PayClev payment write-back**. It is
-off by default. The journal must have a manual incoming payment method with
-an outstanding receipts account. PayClev's payment-account setting selects
-one of these eligible journal/method pairs. A bot cannot change the journal
-opt-in flag.
+Accounting Manager creates a Payclev payment option for each needed,
+already-active Odoo currency and chooses a reconcilable Outstanding Receipts
+account. The add-on provisions the managed journal and incoming method. Legacy
+bank/cash journals can still be opted in under **Incoming Payments** with
+**Allow Payclev payment write-back**, and selected manually in Payclev; they
+are never adopted automatically. A bot cannot change the journal opt-in flag.
 
 Each confirmed payment is one Odoo JSON-2 transaction. A transaction-scoped
 UUID lock serializes retries, an invoice row lock serializes different
@@ -88,20 +145,18 @@ its invoice/payment snapshots after write-back. `in_payment` is not `paid`.
 2. Put `payclev_bridge` on the Odoo addons path. On Odoo.sh, commit it to the
    branch's custom addons directory. On self-hosted Odoo, add this repository
    root (the directory containing `payclev_bridge`) to `addons_path`.
-3. Update the Apps list and install **PayClev Accounting Bridge**. It depends
+3. Update the Apps list and install **Payclev**. It depends
    on Odoo Accounting and loads a bridge-only group, read-only identity access,
    a company record rule and the journal configuration field.
-4. Create a dedicated internal integration user. Assign **PayClev Accounting
-   Bridge** plus the smallest Accounting role that permits invoice/payment
-   registration (the bridge also requires Odoo's invoice permission). Limit
-   allowed companies to the one connected to PayClev. Do not use a personal
-   administrator key. Verify the effective permissions in the test suite.
+4. Open **Payclev** in the Odoo app menu as a Settings administrator, review
+   the chosen company and click **Connect to Payclev**. Sign into Payclev and
+   approve the correct workspace. The app creates a restricted service user;
+   verify its effective permissions and single-company scope in the test suite.
 5. In Accounting → Configuration → Journals, configure the selected incoming
    bank/cash journal and its manual method's Outstanding Receipts account.
    An Accounting Manager then enables **Allow PayClev payment write-back**.
-6. Create an expiring API key for the bot. Supply PayClev's unreleased test
-   connection flow with its HTTPS base URL, key, selected company and database
-   name only if the host does not identify a database. Rotate before expiry.
+6. Return to Payclev, enable integration sync if desired, and select the
+   verified payment journal. Connecting alone does not enable checkout.
 
 Installing the addon alone never enables the PayClev provider or checkout.
 
